@@ -249,14 +249,16 @@ function Profile() {
                         </span>
                       )}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteGame(game)}
-                      title="Удалить игру"
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px', flexShrink: 0 }}
-                    >
-                      <i className="ti ti-trash" style={{ fontSize: '18px', color: '#e74c3c' }}></i>
-                    </button>
+                    {game.organizerId === user?.id && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteGame(game)}
+                        title="Удалить игру"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px', flexShrink: 0 }}
+                      >
+                        <i className="ti ti-trash" style={{ fontSize: '18px', color: '#e74c3c' }}></i>
+                      </button>
+                    )}
                   </div>
                 ))
               )}

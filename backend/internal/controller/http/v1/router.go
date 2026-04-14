@@ -70,7 +70,6 @@ func NewRouter(
 				r.Get("/{id}", eventHandler.GetEventByID)
 				r.Put("/{id}", eventHandler.UpdateEvent)
 				r.Delete("/{id}", eventHandler.DeleteEvent)
-				r.Post("/{id}/activate", eventHandler.ActivateEvent)
 				r.Post("/{id}/finish", eventHandler.FinishEvent)
 
 				r.Post("/{eventId}/participants", participantHandler.Add)

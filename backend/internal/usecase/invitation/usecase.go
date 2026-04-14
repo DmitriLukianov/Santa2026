@@ -59,6 +59,16 @@ func (uc *UseCase) GenerateInvite(ctx context.Context, input dto.CreateInvitatio
 		return dto.InvitationResponse{}, definitions.ErrNotOrganizer
 	}
 
+	// Если активный инвайт уже существует — возвращаем его, не создавая новый
+	if existing, err := uc.repo.GetActiveByEvent(ctx, input.EventID.String()); err == nil && existing != nil {
+		inviteURL := fmt.Sprintf("%s/invite/%s", uc.baseURL, existing.Token)
+		return dto.InvitationResponse{
+			InviteURL: inviteURL,
+			Token:     existing.Token,
+			ExpiresAt: existing.ExpiresAt,
+		}, nil
+	}
+
 	inv := entity.NewInvitation(input.EventID, organizerID, input.ExpiresIn)
 	createdInv, err := uc.repo.Create(ctx, inv)
 	if err != nil {

@@ -7,9 +7,9 @@ import (
 
 type MessageResponse struct {
 	ID        string    `json:"id"`
-	SenderID  string    `json:"sender_id"`
+	SenderID  string    `json:"senderId"`
 	Content   string    `json:"content"`
-	CreatedAt time.Time `json:"created_at"`
+	CreatedAt time.Time `json:"createdAt"`
 }
 
 func MessageToResponse(m *entity.Message) MessageResponse {

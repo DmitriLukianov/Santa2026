@@ -23,8 +23,11 @@ export const fetchMyWishlist = async (eventId) => {
   return handleResponse(response);
 };
 
-export const fetchWishlistItems = async (wishlistId) => {
-  const response = await fetch(`${BASE_URL}/wishlists/${wishlistId}/items`, {
+export const fetchWishlistItems = async (wishlistId, eventId) => {
+  const url = eventId
+    ? `${BASE_URL}/wishlists/${wishlistId}/items?eventId=${eventId}`
+    : `${BASE_URL}/wishlists/${wishlistId}/items`;
+  const response = await fetch(url, {
     method: 'GET',
     headers: getHeaders(),
   });

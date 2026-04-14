@@ -12,6 +12,8 @@ export const handleResponse = async (response) => {
   if (!response.ok) {
     if (response.status === 401) {
       localStorage.removeItem('token');
+      window.location.href = '/registration';
+      throw new Error('Сессия истекла. Войдите снова.');
     }
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.message || errorData.error || `Ошибка HTTP: ${response.status}`);

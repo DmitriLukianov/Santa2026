@@ -99,7 +99,7 @@ func WishlistItemToResponse(item *entity.WishlistItem) WishlistItemResponse {
 
 func WishlistItemsToResponse(items []entity.WishlistItem) []WishlistItemResponse {
 	if items == nil {
-		return nil
+		return []WishlistItemResponse{}
 	}
 	resp := make([]WishlistItemResponse, len(items))
 	for i := range items {

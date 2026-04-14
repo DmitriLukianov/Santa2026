@@ -46,3 +46,12 @@ func (r *Repository) GetByToken(ctx context.Context, token string) (*entity.Invi
 	row := r.db.QueryRow(ctx, query, args...)
 	return ScanInvitation(row)
 }
+
+func (r *Repository) GetActiveByEvent(ctx context.Context, eventID string) (*entity.Invitation, error) {
+	query, args, err := getActiveInvitationByEventQuery(eventID).ToSql()
+	if err != nil {
+		return nil, err
+	}
+	row := r.db.QueryRow(ctx, query, args...)
+	return ScanInvitation(row)
+}

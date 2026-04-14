@@ -46,6 +46,16 @@ func (r *Repository) GetValidCode(ctx context.Context, email, code string) (bool
 	return true, nil
 }
 
+func (r *Repository) InvalidateCodes(ctx context.Context, email string) error {
+	query := invalidateCodesQuery(email)
+	sql, args, err := query.ToSql()
+	if err != nil {
+		return err
+	}
+	_, err = r.db.Exec(ctx, sql, args...)
+	return err
+}
+
 func (r *Repository) MarkAsUsed(ctx context.Context, email, code string) error {
 	query := markAsUsedQuery().
 		Where("email = ?", email).

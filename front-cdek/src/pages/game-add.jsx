@@ -238,7 +238,6 @@ function Game_add() {
     } catch (error) {
       console.error('Ошибка создания игры:', error);
       setSubmitError(error.message || 'Не удалось создать игру. Попробуйте позже.');
-      alert(error.message || 'Ошибка при создании игры');
     } finally {
       setIsSubmitting(false);
     }

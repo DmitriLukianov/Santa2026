@@ -21,3 +21,10 @@ func markAsUsedQuery() squirrel.UpdateBuilder {
 		Set("used", true).
 		Where("used = false")
 }
+
+func invalidateCodesQuery(email string) squirrel.UpdateBuilder {
+	return qb.Update("email_verification_codes").
+		Set("used", true).
+		Where("email = ?", email).
+		Where("used = false")
+}

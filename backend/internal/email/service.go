@@ -3,10 +3,13 @@ package email
 import (
 	"context"
 	"crypto/rand"
+	"crypto/tls"
 	"fmt"
 	"log/slog"
 	"math/big"
+	"net"
 	"net/smtp"
+	"time"
 
 	"secret-santa-backend/internal/config"
 )
@@ -132,9 +135,49 @@ func (s *Service) send(ctx context.Context, to, subject, body string) error {
 		s.cfg.FromEmail, to, subject, body,
 	))
 
-	addr := fmt.Sprintf("%s:%d", s.cfg.SMTPHost, s.cfg.SMTPPort)
+	addr := net.JoinHostPort(s.cfg.SMTPHost, fmt.Sprintf("%d", s.cfg.SMTPPort))
 
-	if err := smtp.SendMail(addr, auth, s.cfg.FromEmail, []string{to}, msg); err != nil {
+	conn, err := net.DialTimeout("tcp", addr, 10*time.Second)
+	if err != nil {
+		if s.log != nil {
+			s.log.Error("failed to connect to SMTP server", slog.String("to", to), slog.String("error", err.Error()))
+		}
+		return fmt.Errorf("failed to connect to smtp: %w", err)
+	}
+	defer conn.Close()
+
+	client, err := smtp.NewClient(conn, s.cfg.SMTPHost)
+	if err != nil {
+		return fmt.Errorf("failed to create smtp client: %w", err)
+	}
+	defer client.Close()
+
+	if ok, _ := client.Extension("STARTTLS"); ok {
+		if err := client.StartTLS(&tls.Config{ServerName: s.cfg.SMTPHost}); err != nil {
+			return fmt.Errorf("smtp starttls failed: %w", err)
+		}
+	}
+
+	if err := client.Auth(auth); err != nil {
+		return fmt.Errorf("smtp auth failed: %w", err)
+	}
+	if err := client.Mail(s.cfg.FromEmail); err != nil {
+		return fmt.Errorf("smtp mail from failed: %w", err)
+	}
+	if err := client.Rcpt(to); err != nil {
+		return fmt.Errorf("smtp rcpt failed: %w", err)
+	}
+	wc, err := client.Data()
+	if err != nil {
+		return fmt.Errorf("smtp data failed: %w", err)
+	}
+	if _, err = wc.Write(msg); err != nil {
+		return fmt.Errorf("smtp write failed: %w", err)
+	}
+	if err := wc.Close(); err != nil {
+		return fmt.Errorf("smtp close failed: %w", err)
+	}
+	if err := client.Quit(); err != nil {
 		if s.log != nil {
 			s.log.Error("failed to send email",
 				slog.String("to", to),

@@ -7,6 +7,7 @@ import (
 	"secret-santa-backend/internal/dto"
 	"secret-santa-backend/internal/entity"
 
+	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -58,7 +59,7 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*entity.Event, 
 }
 
 func (r *Repository) Update(ctx context.Context, id uuid.UUID, input dto.UpdateEventInput) error {
-	q := updateEventQuery().Set("updated_at", "NOW()")
+	q := updateEventQuery().Set("updated_at", squirrel.Expr("NOW()"))
 
 	if input.Title != nil {
 		q = q.Set("title", *input.Title)
@@ -85,7 +86,7 @@ func (r *Repository) Update(ctx context.Context, id uuid.UUID, input dto.UpdateE
 func (r *Repository) UpdateStatus(ctx context.Context, id uuid.UUID, status definitions.EventStatus) error {
 	query, args, err := updateEventQuery().
 		Set("status", status).
-		Set("updated_at", "NOW()").
+		Set("updated_at", squirrel.Expr("NOW()")).
 		Where("id = ?", id).
 		ToSql()
 	if err != nil {

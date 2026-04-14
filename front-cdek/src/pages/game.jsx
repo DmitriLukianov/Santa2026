@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 // Импортируем нужные методы API
-import { fetchGameById, fetchParticipants, fetchAssignments, fetchMe, removeParticipant, deleteGame, isAuthenticated } from '/src/api/gameApi.jsx';
+import { fetchGameById, fetchParticipants, fetchMe, removeParticipant, deleteGame, isAuthenticated } from '/src/api/gameApi.jsx';
+import { addParticipant } from '/src/api/participantsApi.jsx';
 import './main.css';
 
 function Game() {
@@ -33,37 +34,32 @@ function Game() {
         setIsLoading(true);
         setError(null);
 
-        // 1. Параллельно загружаем игру, участников и текущего пользователя
-        const [game, participants, me] = await Promise.all([
+        // 1. Параллельно загружаем игру и текущего пользователя
+        const [game, me] = await Promise.all([
           fetchGameById(eventId),
-          fetchParticipants(eventId),
           fetchMe(),
         ]);
 
-        const participantsList = Array.isArray(participants) ? participants : (participants?.items || []);
-        setParticipantsCount(participantsList.length);
+        const isOrg = game.organizerId === me.id;
+        setIsOrganizer(isOrg);
 
-        // 3. Организатор — тот чей ID совпадает с organizerId игры
-        setIsOrganizer(game.organizerId === me.id);
+        // 2. Участников грузим отдельно — может вернуть 403 если ещё не вступил
+        let participantsList = [];
+        try {
+          const participants = await fetchParticipants(eventId);
+          participantsList = Array.isArray(participants) ? participants : (participants?.items || []);
+        } catch {
+          // Не участник — список недоступен, это нормально
+        }
+
+        setParticipantsCount(participantsList.length);
 
         // Находим participantId текущего пользователя
         const myParticipant = participantsList.find(p => p.userId === me.id);
         setMyParticipantId(myParticipant?.id || null);
 
-        // 4. Проверяем статус жеребьёвки
-        // Пытаемся получить назначение. Если оно есть - жеребьёвка прошла.
-        // Или проверяем поле status у игры (например, 'DRAW_DONE')
-        let drawStatus = false;
-        try {
-          const assignment = await fetchAssignments(eventId);
-          // Если ответ не пустой и содержит данные о назначении
-          if (assignment && (assignment.recipient || assignment.length > 0)) {
-            drawStatus = true;
-          }
-        } catch (assignErr) {
-          // Если жеребьёвка ещё не проведена, API может вернуть 404 или пустой ответ
-          drawStatus = false;
-        }
+        // Жеребьёвка проведена если статус игры gifting или finished
+        const drawStatus = game.status === 'gifting' || game.status === 'finished';
         setIsDrawDone(drawStatus);
 
         // Сохраняем основные данные игры
@@ -136,6 +132,17 @@ function Game() {
       } catch (err) {
         alert('Не удалось выйти из игры. Попробуйте позже.');
       }
+    }
+  };
+
+  const handleJoinGame = async () => {
+    try {
+      const participant = await addParticipant(eventId, {});
+      setMyParticipantId(participant.id);
+      // Обновим счётчик участников
+      setParticipantsCount(prev => prev + 1);
+    } catch (err) {
+      alert(err.message || 'Не удалось присоединиться к игре.');
     }
   };
 

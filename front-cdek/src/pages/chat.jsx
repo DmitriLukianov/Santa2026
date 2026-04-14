@@ -11,6 +11,7 @@ function SecretChat() {
   const [message, setMessage] = useState('');
 
   const [messages, setMessages] = useState({ recipient: [], sender: [] });
+  const [isSending, setIsSending] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [chatError, setChatError] = useState(null);
   const [myId, setMyId] = useState(null);
@@ -36,8 +37,8 @@ function SecretChat() {
     return chatHistory.map(msg => ({
       id: msg.id,
       text: msg.content,
-      sender: userId && msg.sender_id === userId ? 'me' : 'them',
-      time: new Date(msg.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+      sender: userId && msg.senderId === userId ? 'me' : 'them',
+      time: new Date(msg.createdAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
     }));
   }, []);
 
@@ -119,7 +120,7 @@ function SecretChat() {
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!message.trim() || !eventId) return;
+    if (!message.trim() || !eventId || isSending) return;
 
     const text = message.trim();
     const tempId = `temp_${Date.now()}`;
@@ -136,6 +137,7 @@ function SecretChat() {
       [activeTab]: [...prev[activeTab], newMessage]
     }));
     setMessage('');
+    setIsSending(true);
 
     try {
       if (activeTab === 'sender') {
@@ -151,6 +153,8 @@ function SecretChat() {
         ...prev,
         [activeTab]: prev[activeTab].filter(m => m.id !== tempId)
       }));
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -248,7 +252,7 @@ function SecretChat() {
             value={message}
             onChange={(e) => setMessage(e.target.value)}
           />
-          <button type="submit" className="chat-send-btn" disabled={!message.trim()}>
+          <button type="submit" className="chat-send-btn" disabled={!message.trim() || isSending}>
             ➤
           </button>
         </form>

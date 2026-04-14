@@ -221,6 +221,47 @@ func (h *WishlistHandler) GetItems(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	userID, err := helpers.GetUserID(r)
+	if err != nil {
+		response.WriteHTTPError(w, err)
+		return
+	}
+
+	wishlist, err := h.uc.GetByID(r.Context(), wishlistID)
+	if err != nil {
+		response.WriteHTTPError(w, definitions.ErrWishlistNotFound)
+		return
+	}
+
+	// Проверяем права доступа
+	if !h.isWishlistOwner(r, wishlist, userID) {
+		// Не владелец — проверяем видимость
+		if wishlist.Visibility == definitions.WishlistVisibilitySantaOnly {
+			// Для santa_only нужен eventId — Santa должен передать его
+			eventIDStr := r.URL.Query().Get("eventId")
+			if eventIDStr == "" {
+				response.WriteHTTPError(w, definitions.ErrForbidden)
+				return
+			}
+			eventID, err := uuid.Parse(eventIDStr)
+			if err != nil {
+				response.WriteHTTPError(w, definitions.ErrInvalidUUID)
+				return
+			}
+			// Повторно используем GetForUser: если доступ есть — пропускаем
+			if wishlist.ParticipantID != nil {
+				if _, err := h.uc.GetForUser(r.Context(), eventID, *wishlist.ParticipantID, userID); err != nil {
+					response.WriteHTTPError(w, err)
+					return
+				}
+			} else {
+				response.WriteHTTPError(w, definitions.ErrForbidden)
+				return
+			}
+		}
+		// public — доступ разрешён всем
+	}
+
 	items, err := h.uc.GetItems(r.Context(), wishlistID)
 	if err != nil {
 		response.WriteHTTPError(w, err)

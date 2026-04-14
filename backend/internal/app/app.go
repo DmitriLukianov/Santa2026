@@ -77,7 +77,7 @@ func New() *App {
 
 	userHandler := v1.NewUserHandler(userUC)
 	eventHandler := v1.NewEventHandler(eventUC)
-	participantHandler := v1.NewParticipantHandler(participantUC)
+	participantHandler := v1.NewParticipantHandler(participantUC, eventUC)
 	wishlistHandler := v1.NewWishlistHandler(wishlistUC, participantUC)
 	assignmentHandler := v1.NewAssignmentHandler(assignmentUC)
 	invitationHandler := v1.NewInvitationHandler(invitationUC)
@@ -120,8 +120,11 @@ func New() *App {
 		log:    log,
 		cancel: cancel,
 		server: &http.Server{
-			Addr:    ":" + cfg.AppPort,
-			Handler: router,
+			Addr:         ":" + cfg.AppPort,
+			Handler:      router,
+			ReadTimeout:  15 * time.Second,
+			WriteTimeout: 30 * time.Second,
+			IdleTimeout:  60 * time.Second,
 		},
 	}
 }

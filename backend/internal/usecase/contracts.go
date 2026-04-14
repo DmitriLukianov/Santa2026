@@ -96,4 +96,5 @@ type VerificationRepository interface {
 	SaveCode(ctx context.Context, email, code string, expiresAt time.Time) error
 	GetValidCode(ctx context.Context, email, code string) (bool, error)
 	MarkAsUsed(ctx context.Context, email, code string) error
+	InvalidateCodes(ctx context.Context, email string) error
 }

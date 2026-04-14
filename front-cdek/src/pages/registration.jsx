@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { sendOtpCode, verifyOtpCode } from '/src/api/gameApi.jsx';
 import './main.css';
@@ -28,6 +28,8 @@ function Registration() {
   const [isCodeSent, setIsCodeSent] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [serverError, setServerError] = useState('');
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const cooldownRef = useRef(null);
   
   // Состояния ошибок валидации
   const [errors, setErrors] = useState({ name: [], email: [], code: [] });
@@ -65,6 +67,21 @@ function Registration() {
     return isValid;
   };
 
+  const startCooldown = () => {
+    setResendCooldown(60);
+    cooldownRef.current = setInterval(() => {
+      setResendCooldown(prev => {
+        if (prev <= 1) {
+          clearInterval(cooldownRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  useEffect(() => () => clearInterval(cooldownRef.current), []);
+
   const handleSendCode = async () => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!loginData.email || !emailRegex.test(loginData.email)) {
@@ -77,6 +94,8 @@ function Registration() {
     try {
       await sendOtpCode(loginData.email);
       setIsCodeSent(true);
+      setLoginData(prev => ({ ...prev, code: '' }));
+      startCooldown();
     } catch (err) {
       setServerError(err.message || 'Не удалось отправить код.');
     } finally {
@@ -134,12 +153,12 @@ function Registration() {
           <div className="password-field-group">
             <div className="password-input-wrapper">
               <input type="text" name="code" placeholder="Введите код из письма" value={loginData.code} onChange={handleLoginChange} onBlur={() => setTouched(prev => ({ ...prev, code: true }))} required disabled={isLoading || !isCodeSent} className={`password-input ${errors.code.length > 0 && touched.code ? 'input-error' : ''}`} />
-              <button type="button" className="btn-send-code-inline" onClick={handleSendCode} disabled={isLoading || isCodeSent} title={isCodeSent ? 'Код уже отправлен' : 'Отправить код на почту'}>
-                {isLoading ? 'Отправка...' : (isCodeSent ? 'Отправлено' : 'Отправить код')}
+              <button type="button" className="btn-send-code-inline" onClick={handleSendCode} disabled={isLoading || (!isCodeSent ? false : resendCooldown > 0)} title={isCodeSent ? 'Отправить код повторно' : 'Отправить код на почту'}>
+                {isLoading ? 'Отправка...' : (isCodeSent ? (resendCooldown > 0 ? `Повторно через ${resendCooldown}с` : 'Отправить повторно') : 'Отправить код')}
               </button>
             </div>
           </div>
-          
+
           {isCodeSent && !serverError && (<span className="password-sent-hint">✓ Код отправлен! Проверьте почту.</span>)}
 
           {/* Кнопки действий */}

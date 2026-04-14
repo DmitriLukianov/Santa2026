@@ -11,6 +11,7 @@ import (
 type Repository interface {
 	Create(ctx context.Context, invitation entity.Invitation) (entity.Invitation, error)
 	GetByToken(ctx context.Context, token string) (*entity.Invitation, error)
+	GetActiveByEvent(ctx context.Context, eventID string) (*entity.Invitation, error)
 }
 
 type EventRepository interface {

@@ -12,6 +12,7 @@ import (
 	"secret-santa-backend/internal/entity"
 	participant "secret-santa-backend/internal/usecase/participant"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/google/uuid"
 )
@@ -95,7 +96,10 @@ func (uc *UseCase) GetByID(ctx context.Context, id uuid.UUID) (*entity.Event, er
 	}
 	event, err := uc.repo.GetByID(ctx, id)
 	if err != nil {
-		return nil, definitions.ErrEventNotFound
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, definitions.ErrEventNotFound
+		}
+		return nil, fmt.Errorf("failed to get event: %w", err)
 	}
 	return event, nil
 }

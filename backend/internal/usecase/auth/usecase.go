@@ -60,7 +60,7 @@ func (uc *UseCase) LoginWithOAuth(ctx context.Context, info oauth.UserInfo) (str
 			uc.log.Info("existing oauth user found", slog.String("user_id", user.ID.String()))
 		}
 		if uc.emailService != nil {
-			_ = uc.emailService.SendLoginNotification(ctx, user.Email, user.Name)
+			go func() { _ = uc.emailService.SendLoginNotification(context.Background(), user.Email, user.Name) }()
 		}
 		return user.ID.String(), nil
 	}
@@ -80,7 +80,9 @@ func (uc *UseCase) LoginWithOAuth(ctx context.Context, info oauth.UserInfo) (str
 				)
 			}
 			if uc.emailService != nil {
-				_ = uc.emailService.SendLoginNotification(ctx, existingUser.Email, existingUser.Name)
+				go func() {
+					_ = uc.emailService.SendLoginNotification(context.Background(), existingUser.Email, existingUser.Name)
+				}()
 			}
 			return existingUser.ID.String(), nil
 		}
@@ -101,7 +103,7 @@ func (uc *UseCase) LoginWithOAuth(ctx context.Context, info oauth.UserInfo) (str
 		uc.log.Info("new oauth user created", slog.String("user_id", createdUser.ID.String()))
 	}
 	if uc.emailService != nil {
-		_ = uc.emailService.SendLoginNotification(ctx, createdUser.Email, createdUser.Name)
+		go func() { _ = uc.emailService.SendLoginNotification(context.Background(), createdUser.Email, createdUser.Name) }()
 	}
 	return createdUser.ID.String(), nil
 }
@@ -125,6 +127,9 @@ func (uc *UseCase) SendOTP(ctx context.Context, email string) error {
 		)
 	}
 
+	// Инвалидируем все старые коды для этого email перед отправкой нового
+	_ = uc.verificationRepo.InvalidateCodes(ctx, email)
+
 	expiresAt := time.Now().Add(10 * time.Minute)
 	if err := uc.verificationRepo.SaveCode(ctx, email, code, expiresAt); err != nil {
 		return fmt.Errorf("failed to save verification code: %w", err)
@@ -143,12 +148,17 @@ func (uc *UseCase) VerifyOTP(ctx context.Context, email, code, name string) (str
 		return "", definitions.ErrInvalidUserInput
 	}
 
-	_ = uc.verificationRepo.MarkAsUsed(ctx, email, code)
+	if err := uc.verificationRepo.MarkAsUsed(ctx, email, code); err != nil {
+		if uc.log != nil {
+			uc.log.Warn("failed to mark OTP as used", slog.String("email", email), slog.String("error", err.Error()))
+		}
+		return "", definitions.ErrInvalidUserInput
+	}
 
 	user, err := uc.userUC.GetByEmail(ctx, email)
 	if err == nil && user != nil {
 		if uc.emailService != nil {
-			_ = uc.emailService.SendLoginNotification(ctx, user.Email, user.Name)
+			go func() { _ = uc.emailService.SendLoginNotification(context.Background(), user.Email, user.Name) }()
 		}
 		return user.ID.String(), nil
 	}
@@ -170,7 +180,7 @@ func (uc *UseCase) VerifyOTP(ctx context.Context, email, code, name string) (str
 	}
 
 	if uc.emailService != nil {
-		_ = uc.emailService.SendLoginNotification(ctx, createdUser.Email, createdUser.Name)
+		go func() { _ = uc.emailService.SendLoginNotification(context.Background(), createdUser.Email, createdUser.Name) }()
 	}
 	return createdUser.ID.String(), nil
 }

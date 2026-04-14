@@ -96,8 +96,12 @@ func (uc *UseCase) Delete(ctx context.Context, id, requesterID uuid.UUID) error 
 		return definitions.ErrParticipantNotFound
 	}
 
+	// Участник может удалить себя сам; организатор события — любого участника
 	if p.UserID != requesterID {
-		return definitions.ErrForbidden
+		event, err := uc.eventRepo.GetByID(ctx, p.EventID)
+		if err != nil || event.OrganizerID != requesterID {
+			return definitions.ErrForbidden
+		}
 	}
 
 	if err := uc.repo.Delete(ctx, id); err != nil {

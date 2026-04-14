@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 // Импортируем нужные методы API
 import { fetchGameById, updateGame, fetchParticipants, removeParticipant, generateInviteLink, isAuthenticated } from '/src/api/gameApi.jsx';
+import { addParticipant } from '/src/api/participantsApi.jsx';
 import './main.css';
 
 // === ФУНКЦИИ ВАЛИДАЦИИ (без изменений) ===
@@ -80,6 +81,7 @@ function Game_edit() {
   // Состояния загрузки и ошибок
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [inviteLink, setInviteLink] = useState('');
 
   const MIN_DATE = new Date().toISOString().split('T')[0];
@@ -122,16 +124,18 @@ function Game_edit() {
           console.warn('Ссылка-приглашение недоступна');
         }
 
-        // 3. Получаем список участников
-        const participantsList = await fetchParticipants(eventId);
-        // Адаптируем ответ (массив или объект { items: [] })
-        const list = Array.isArray(participantsList) ? participantsList : (participantsList.items || []);
-        setParticipants(list);
+        // 3. Получаем список участников (может вернуть 403 если организатор не участник)
+        try {
+          const participantsList = await fetchParticipants(eventId);
+          const list = Array.isArray(participantsList) ? participantsList : (participantsList.items || []);
+          setParticipants(list);
+        } catch (err) {
+          console.warn('Не удалось загрузить участников:', err);
+        }
 
       } catch (error) {
         console.error('Ошибка загрузки данных игры:', error);
-        alert('Не удалось загрузить данные игры. Проверьте консоль.');
-        navigate(`/game/${eventId}`);
+        navigate(`/game/${eventId}`, { replace: true });
       } finally {
         setIsLoading(false);
       }
@@ -197,6 +201,20 @@ function Game_edit() {
     }
   };
 
+  const handleJoinAsParticipant = async () => {
+    try {
+      await addParticipant(eventId, {});
+      // Перезагружаем список чтобы получить имя и email участника
+      const updated = await fetchParticipants(eventId);
+      const list = Array.isArray(updated) ? updated : (updated.items || []);
+      setParticipants(list);
+    } catch (error) {
+      alert(error.message || 'Не удалось присоединиться к игре.');
+    }
+  };
+
+  const isOrganizerParticipant = participants.some(p => p.userId === organizerId);
+
   // ← НОВОЕ: Сохранение изменений через API
   const handleSave = async () => {
     if (!isFormValid()) {
@@ -215,11 +233,10 @@ function Game_edit() {
 
       await updateGame(eventId, updatedData);
       
-      alert('Изменения сохранены!');
       navigate(`/game/${eventId}`);
     } catch (error) {
       console.error('Ошибка сохранения:', error);
-      alert('Не удалось сохранить изменения. Попробуйте позже.');
+      setSaveError(error.message || 'Не удалось сохранить изменения. Попробуйте позже.');
     } finally {
       setIsSaving(false);
     }
@@ -381,26 +398,37 @@ function Game_edit() {
                       <span className="participant-name">{participant.userName || participant.userId}</span>
                       <span className="participant-email">{participant.userEmail}</span>
                     </div>
-                    {participant.userId !== organizerId && (
-                      <button
-                        type="button"
-                        className="btn-secondary"
-                        onClick={() => handleRemoveParticipant(participant.id)}
-                        title="Удалить участника"
-                        disabled={isSaving}
-                        style={{ border: 'none' }}
-                      >
-                        <i className="ti ti-x" style={{ fontSize: '16px', color: 'black'}}></i>
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => handleRemoveParticipant(participant.id)}
+                      title=""
+                      disabled={isSaving}
+                      style={{ border: 'none' }}
+                    >
+                      <i className="ti ti-x" style={{ fontSize: '16px', color: 'black'}}></i>
+                    </button>
                   </div>
                 ))
               )}
             </div>
+
+            {!isOrganizerParticipant && (
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={handleJoinAsParticipant}
+                disabled={isSaving}
+                style={{ marginTop: '10px' }}
+              >
+                Присоединиться к игре
+              </button>
+            )}
           </div>
         </div>
 
         <div className="edit-footer">
+          {saveError && <p style={{ color: '#e74c3c', marginBottom: '8px', textAlign: 'center' }}>{saveError}</p>}
           <button type="button" className="btn-primary" onClick={handleSave} disabled={isSaving}>
             {isSaving ? 'Сохранение...' : 'Сохранить изменения'}
           </button>

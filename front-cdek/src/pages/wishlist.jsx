@@ -59,7 +59,13 @@ function Wishlist() {
         setIsEmpty(list.length === 0);
       } catch (err) {
         console.error('Ошибка загрузки вишлиста:', err);
-        setError(err.message || 'Не удалось загрузить товары');
+        // Если пользователь не участник события — показываем специальное сообщение
+        const msg = err.message || '';
+        if (eventId && (msg.includes('participant') || msg.includes('участник') || msg.includes('500') || msg.includes('Внутренняя'))) {
+          setError('not_participant');
+        } else {
+          setError(msg || 'Не удалось загрузить товары');
+        }
         setIsEmpty(true);
       } finally {
         setIsLoading(false);
@@ -106,7 +112,7 @@ function Wishlist() {
     if (eventId) {
       navigate(`/game/${eventId}`);
     } else {
-      navigate('/');
+      navigate('/profile');
     }
   };
 
@@ -169,7 +175,7 @@ function Wishlist() {
     setIsImporting(true);
     try {
       const toImport = personalItems.filter(item => selectedIds.has(item.id));
-      const added = await Promise.all(
+      const results = await Promise.allSettled(
         toImport.map(item =>
           addWishlistItem(wishlistId, {
             title: item.title,
@@ -179,9 +185,18 @@ function Wishlist() {
           })
         )
       );
-      setGifts(prev => [...prev, ...added]);
-      setIsEmpty(false);
-      setShowImport(false);
+      const added = results
+        .filter(r => r.status === 'fulfilled')
+        .map(r => r.value);
+      const failed = results.filter(r => r.status === 'rejected').length;
+      if (added.length > 0) {
+        setGifts(prev => [...prev, ...added]);
+        setIsEmpty(false);
+        setShowImport(false);
+      }
+      if (failed > 0) {
+        alert(`Не удалось добавить ${failed} из ${toImport.length} товаров.`);
+      }
     } catch (err) {
       console.error('Ошибка импорта:', err);
       alert('Не удалось импортировать товары.');
@@ -209,11 +224,26 @@ function Wishlist() {
           </>
         ) : error && gifts.length === 0 ? (
           <div className="wishlist-error">
-            <i className="ti ti-alert-circle" style={{ fontSize: '48px', color: '#e74c3c' }}></i>
-            <p className="error-text">{error}</p>
-            <button className="btn-secondary" onClick={() => window.location.reload()}>
-              Попробовать снова
-            </button>
+            {error === 'not_participant' ? (
+              <>
+                <i className="ti ti-user-off" style={{ fontSize: '48px', color: '#e74c3c' }}></i>
+                <p className="error-text">Вы не являетесь участником этой игры.</p>
+                <p style={{ color: '#757575', fontSize: '14px', marginBottom: '16px' }}>
+                  Сначала присоединитесь к игре, чтобы создать вишлист.
+                </p>
+                <button className="btn-primary" onClick={() => navigate(`/game/${eventId}`)}>
+                  Перейти к игре
+                </button>
+              </>
+            ) : (
+              <>
+                <i className="ti ti-alert-circle" style={{ fontSize: '48px', color: '#e74c3c' }}></i>
+                <p className="error-text">{error}</p>
+                <button className="btn-secondary" onClick={() => window.location.reload()}>
+                  Попробовать снова
+                </button>
+              </>
+            )}
           </div>
         ) : isEmpty ? (
           <div className="wishlist-empty">
