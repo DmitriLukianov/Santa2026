@@ -157,7 +157,7 @@ input:focus {
 }
 
 .card1 { max-width: 500px; text-align: center; background: #fbfbfb; padding: 50px 60px; }
-.card_profile { max-width: 900px; padding: 30px; position: relative;}
+.card_profile { max-width: 900px; padding: 30px; position: relative; overflow: hidden; box-sizing: border-box; }
 .card_profile_red { max-width: 600px; padding: 40px 50px; }
 .card_wishlist { max-width: 700px; padding: 40px 50px; }
 .card_wishlist_add, .card_wishlist_red { max-width: 700px; padding: 40px 50px; }
@@ -208,6 +208,7 @@ input:focus {
   gap: 50px;
   align-items: start;
 }
+.personal-data, .games-list { min-width: 0; max-width: 100%; box-sizing: border-box; }
 .personal-data form { display: flex; flex-direction: column; gap: var(--spacing); }
 .input-readonly {
   padding: 12px;
@@ -217,21 +218,21 @@ input:focus {
   font-size: 16px;
   margin-bottom: var(--spacing);
 }
-.input-readonly .value { font-weight: 500; }
+.input-readonly .value { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
 .personal-data button {
   width: 100%;
   padding: 14px;
   justify-content: center;
 }
 .games-list { display: flex; flex-direction: column; gap: var(--spacing); }
-.games-list > .btn-secondary, .game-item {
-  width: 100%;
-  display: block;
-  text-align: center;
-}
+/* Кнопки действий внутри games-list (Создать / Подключиться) */
+.games-list .btn-primary, .games-list .btn-secondary { width: 100%; box-sizing: border-box; justify-content: center; }
 .games-scroll-container {
   max-height: 150px;
   overflow-y: auto;
+  overflow-x: hidden;
+  width: 100%;
+  box-sizing: border-box;
   padding: var(--spacing);
   background: #f9f9f9;
   border-radius: var(--border-radius);
@@ -240,14 +241,64 @@ input:focus {
   flex-direction: column;
   gap: var(--spacing);
 }
+/* Строка игры */
+.game-list-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+}
 .game-item {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
   text-align: left;
   background: white;
   border: 1px solid #ddd;
   cursor: pointer;
   transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px;
 }
 .game-item:hover { border-color: var(--primary-color); color: var(--primary-color); }
+/* Название игры */
+.game-item-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+/* Статус игры */
+.game-item-status {
+  font-size: 12px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+/* Кнопка удаления */
+.game-delete-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 6px;
+  flex-shrink: 0;
+}
+/* Мобильный: название и статус в колонку */
+@media (max-width: 600px) {
+  .game-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+  .game-item-status {
+    font-size: 11px;
+  }
+}
 .games-scroll-container::-webkit-scrollbar { width: var(--spacing); }
 .games-scroll-container::-webkit-scrollbar-track { background: #f1f1f1; border-radius: var(--spacing-2); }
 .games-scroll-container::-webkit-scrollbar-thumb { background: #ccc; border-radius: var(--spacing-2); }
@@ -1141,6 +1192,9 @@ input:focus {
   font-weight: 700;
   color: var(--primary-color);
   margin: 0 0 20px 0;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  overflow: hidden;
 }
 
 .game-info {
@@ -1422,11 +1476,17 @@ input:focus {
   font-weight: 600;
   color: var(--dark-color);
   font-size: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .participant-email {
   font-size: 12px;
   color: var(--gray-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 
@@ -1999,7 +2059,7 @@ input:focus {
   }
   
   /* === ОВЕРЛЕИ === */
-  .overlay1, .overlay_profile_red, .overlay_wishlist, .overlay_wishlist_add,
+  .overlay1, .overlay_profile, .overlay_profile_red, .overlay_wishlist, .overlay_wishlist_add,
   .overlay_wishlist_red, .overlay_game, .overlay_game_add {
     padding: 21px;
   }
@@ -2027,6 +2087,9 @@ input:focus {
   
   /* === ПРОФИЛЬ === */
   .card_profile_red .form-group { max-width: 100%; }
+  .profile-content { grid-template-columns: 1fr; gap: 24px; }
+  .personal-data button { padding: 12px; }
+  .games-scroll-container { max-height: 200px; }
   
   /* === РЕГИСТРАЦИЯ === */
   .card1 .agreement1 { margin-top: 21px; font-size: 11px; }

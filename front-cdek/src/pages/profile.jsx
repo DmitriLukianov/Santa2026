@@ -235,16 +235,20 @@ function Profile() {
                 </p>
               ) : (
                 games.map((game) => (
-                  <div key={game.id} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div key={game.id} className="game-list-row">
                     <button
                       type="button"
                       className="game-item"
-                      style={{ flex: 1 }}
                       onClick={() => handleGoGame(game.id)}
                     >
-                      {game.title || `Игра #${game.id}`}
+                      <span className="game-item-title">
+                        {(() => { const t = game.title || `Игра #${game.id}`; return t.length > 30 ? t.slice(0, 30) + '...' : t; })()}
+                      </span>
                       {game.status && (
-                        <span style={{ float: 'right', fontSize: '12px', color: game.status === 'gifting' ? '#44E858' : game.status === 'finished' ? '#aaaaaa' : '#757575' }}>
+                        <span
+                          className="game-item-status"
+                          style={{ color: game.status === 'gifting' ? '#44E858' : game.status === 'finished' ? '#aaaaaa' : '#757575' }}
+                        >
                           ● {game.status === 'gifting' ? 'Дарение' : game.status === 'finished' ? 'Завершена' : 'Регистрация'}
                         </span>
                       )}
@@ -252,9 +256,9 @@ function Profile() {
                     {game.organizerId === user?.id && (
                       <button
                         type="button"
+                        className="game-delete-btn"
                         onClick={() => handleDeleteGame(game)}
                         title="Удалить игру"
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px', flexShrink: 0 }}
                       >
                         <i className="ti ti-trash" style={{ fontSize: '18px', color: '#e74c3c' }}></i>
                       </button>
