@@ -26,7 +26,4 @@ var (
 	ErrNotOrganizer                = errors.New("not organizer")
 	ErrNotSanta                    = errors.New("not santa")
 	ErrAssignmentNotFound          = errors.New("assignment not found")
-	ErrFriendshipNotFound          = errors.New("friendship not found")
-	ErrFriendshipAlreadyExists     = errors.New("friendship already exists")
-	ErrFriendshipInvalidStatus     = errors.New("invalid friendship status")
 )

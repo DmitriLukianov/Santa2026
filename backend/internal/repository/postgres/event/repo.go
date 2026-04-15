@@ -97,7 +97,14 @@ func (r *Repository) UpdateStatus(ctx context.Context, id uuid.UUID, status defi
 }
 
 func (r *Repository) Delete(ctx context.Context, id uuid.UUID) error {
-	query, args, err := deleteEventQuery().Where("id = ?", id).ToSql()
+	// Soft delete: ставим метку deleted_at вместо физического удаления.
+	// Данные (участники, жеребьёвка, чат) сохраняются для истории.
+	query, args, err := updateEventQuery().
+		Set("deleted_at", squirrel.Expr("NOW()")).
+		Set("updated_at", squirrel.Expr("NOW()")).
+		Where("id = ?", id).
+		Where("deleted_at IS NULL").
+		ToSql()
 	if err != nil {
 		return err
 	}

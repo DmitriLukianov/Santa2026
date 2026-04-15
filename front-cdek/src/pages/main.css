@@ -1282,7 +1282,10 @@ input:focus {
 }
 
 .game-footer {
-  text-align: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
   padding-top: 20px;
   border-top: 1px solid #eee;
 }

@@ -38,7 +38,14 @@ func (r *Repository) CreateMessage(ctx context.Context, msg entity.Message) (ent
 }
 
 func (r *Repository) GetMessagesByPair(ctx context.Context, eventID, user1ID, user2ID uuid.UUID) ([]entity.Message, error) {
-	query := getMessagesByPairQuery(eventID.String(), user1ID.String(), user2ID.String())
+	return r.GetMessagesByPairPaged(ctx, eventID, user1ID, user2ID, 100, 0)
+}
+
+// GetMessagesByPairPaged возвращает сообщения между двумя пользователями с пагинацией.
+func (r *Repository) GetMessagesByPairPaged(ctx context.Context, eventID, user1ID, user2ID uuid.UUID, limit, offset int) ([]entity.Message, error) {
+	query := getMessagesByPairQuery(eventID.String(), user1ID.String(), user2ID.String()).
+		Limit(uint64(limit)).
+		Offset(uint64(offset))
 	sql, args, err := query.ToSql()
 	if err != nil {
 		return nil, err

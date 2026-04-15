@@ -94,18 +94,37 @@ func (r *Repository) GetByUserID(ctx context.Context, userID uuid.UUID) (*entity
 }
 
 func (r *Repository) GetItems(ctx context.Context, wishlistID uuid.UUID) ([]entity.WishlistItem, error) {
-	query := getWishlistItemsQuery(wishlistID.String())
+	items, _, err := r.GetItemsPaged(ctx, wishlistID, 200, 0)
+	return items, err
+}
+
+// GetItemsPaged возвращает элементы вишлиста с пагинацией.
+func (r *Repository) GetItemsPaged(ctx context.Context, wishlistID uuid.UUID, limit, offset int) ([]entity.WishlistItem, int, error) {
+	query := getWishlistItemsQuery(wishlistID.String()).
+		Limit(uint64(limit)).
+		Offset(uint64(offset))
 	sql, args, err := query.ToSql()
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	rows, err := r.db.Query(ctx, sql, args...)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
+	items, err := scanWishlistItems(rows)
+	if err != nil {
+		return nil, 0, err
+	}
 
-	return scanWishlistItems(rows)
+	countSQL, countArgs, err := countWishlistItemsQuery(wishlistID.String()).ToSql()
+	if err != nil {
+		return items, 0, nil
+	}
+	var total int
+	_ = r.db.QueryRow(ctx, countSQL, countArgs...).Scan(&total)
+
+	return items, total, nil
 }
 
 func (r *Repository) UpdateItem(ctx context.Context, itemID uuid.UUID, title string, link, imageURL *string, price *float64) error {

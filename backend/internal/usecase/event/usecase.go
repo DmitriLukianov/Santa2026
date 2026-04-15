@@ -118,6 +118,11 @@ func (uc *UseCase) Update(ctx context.Context, id, userID uuid.UUID, input dto.U
 		return definitions.ErrNotOrganizer
 	}
 
+	// Нельзя редактировать событие после начала жеребьёвки
+	if eventPtr.Status == definitions.EventStatusGifting || eventPtr.Status == definitions.EventStatusFinished {
+		return definitions.ErrInvalidEventState
+	}
+
 	if uc.log != nil {
 		uc.log.Info("update event started", slog.String("event_id", id.String()))
 	}

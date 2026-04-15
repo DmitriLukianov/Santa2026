@@ -79,6 +79,13 @@ func (uc *UseCase) GetByEvent(ctx context.Context, eventID uuid.UUID) ([]entity.
 	return uc.repo.GetByEvent(ctx, eventID)
 }
 
+func (uc *UseCase) GetByEventPaged(ctx context.Context, eventID uuid.UUID, limit, offset int) ([]entity.Participant, int, error) {
+	if eventID == uuid.Nil {
+		return nil, 0, definitions.ErrInvalidUserInput
+	}
+	return uc.repo.GetByEventPaged(ctx, eventID, limit, offset)
+}
+
 func (uc *UseCase) Delete(ctx context.Context, id, requesterID uuid.UUID) error {
 	if id == uuid.Nil || requesterID == uuid.Nil {
 		return definitions.ErrInvalidUserInput
@@ -97,11 +104,18 @@ func (uc *UseCase) Delete(ctx context.Context, id, requesterID uuid.UUID) error 
 	}
 
 	// Участник может удалить себя сам; организатор события — любого участника
-	if p.UserID != requesterID {
-		event, err := uc.eventRepo.GetByID(ctx, p.EventID)
-		if err != nil || event.OrganizerID != requesterID {
-			return definitions.ErrForbidden
-		}
+	event, err := uc.eventRepo.GetByID(ctx, p.EventID)
+	if err != nil {
+		return definitions.ErrEventNotFound
+	}
+
+	if p.UserID != requesterID && event.OrganizerID != requesterID {
+		return definitions.ErrForbidden
+	}
+
+	// Нельзя покидать/удалять участника после начала жеребьёвки
+	if event.Status == definitions.EventStatusGifting || event.Status == definitions.EventStatusFinished {
+		return definitions.ErrInvalidEventState
 	}
 
 	if err := uc.repo.Delete(ctx, id); err != nil {

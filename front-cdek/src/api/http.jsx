@@ -10,6 +10,7 @@ export const getHeaders = () => {
 
 export const handleResponse = async (response) => {
   if (!response.ok) {
+    // 401 — токен невалиден или пользователь не найден в БД
     if (response.status === 401) {
       localStorage.removeItem('token');
       window.location.href = '/registration';

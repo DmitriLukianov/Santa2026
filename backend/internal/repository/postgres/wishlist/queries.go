@@ -44,6 +44,13 @@ func getWishlistByUserIDQuery(userID uuid.UUID) squirrel.SelectBuilder {
 func getWishlistItemsQuery(wishlistID string) squirrel.SelectBuilder {
 	return qb.Select("id", "wishlist_id", "title", "link", "image_url", "price", "created_at").
 		From("wishlist_items").
+		Where(squirrel.Eq{"wishlist_id": wishlistID}).
+		OrderBy("created_at ASC")
+}
+
+func countWishlistItemsQuery(wishlistID string) squirrel.SelectBuilder {
+	return qb.Select("COUNT(*)").
+		From("wishlist_items").
 		Where(squirrel.Eq{"wishlist_id": wishlistID})
 }
 

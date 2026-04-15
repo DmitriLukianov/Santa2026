@@ -28,3 +28,21 @@ func getMessagesByPairQuery(eventID, user1ID, user2ID string) squirrel.SelectBui
 		).
 		OrderBy("created_at ASC")
 }
+
+func countMessagesByPairQuery(eventID, user1ID, user2ID string) squirrel.SelectBuilder {
+	return qb.Select("COUNT(*)").
+		From("messages").
+		Where(squirrel.Eq{"event_id": eventID}).
+		Where(
+			squirrel.Or{
+				squirrel.And{
+					squirrel.Eq{"sender_id": user1ID},
+					squirrel.Eq{"receiver_id": user2ID},
+				},
+				squirrel.And{
+					squirrel.Eq{"sender_id": user2ID},
+					squirrel.Eq{"receiver_id": user1ID},
+				},
+			},
+		)
+}

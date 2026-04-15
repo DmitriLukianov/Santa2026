@@ -62,30 +62,37 @@ func (h *ParticipantHandler) GetByEvent(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	participants, err := h.uc.GetByEvent(r.Context(), eventID)
+	// Проверяем права доступа: должен быть участником или организатором
+	event, err := h.eventUC.GetByID(r.Context(), eventID)
+	if err != nil {
+		response.WriteHTTPError(w, err)
+		return
+	}
+
+	pg := helpers.ParsePagination(r)
+	participants, total, err := h.uc.GetByEventPaged(r.Context(), eventID, pg.Limit, pg.Offset())
 	if err != nil {
 		response.WriteHTTPError(w, err)
 		return
 	}
 
 	// Только участник или организатор события может видеть список
-	isMember := false
-	for _, p := range participants {
-		if p.UserID == requesterID {
-			isMember = true
-			break
+	if event.OrganizerID != requesterID {
+		isMember := false
+		for _, p := range participants {
+			if p.UserID == requesterID {
+				isMember = true
+				break
+			}
 		}
-	}
-	if !isMember {
-		event, err := h.eventUC.GetByID(r.Context(), eventID)
-		if err != nil || event.OrganizerID != requesterID {
+		if !isMember {
 			response.WriteHTTPError(w, definitions.ErrForbidden)
 			return
 		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response.ParticipantsToResponse(participants))
+	json.NewEncoder(w).Encode(helpers.NewPagedResponse(response.ParticipantsToResponse(participants), total, pg))
 }
 
 

@@ -42,7 +42,7 @@ function Wishlist_Santa({ participantName: propName }) {
 
         // 2. Получаем товары вишлиста (передаём eventId для проверки Santa-доступа)
         const items = await fetchWishlistItems(wishlistId, eventId);
-        const list = Array.isArray(items) ? items : [];
+        const list = Array.isArray(items) ? items : (items?.items || []);
         setGifts(list);
         setIsEmpty(list.length === 0);
 

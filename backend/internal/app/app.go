@@ -49,7 +49,10 @@ func New() *App {
 	cfg := config.Load()
 	log := logger.New(cfg.LogLevel, cfg.AppEnv)
 
-	db, err := database.NewDB(cfg.DatabaseURL)
+	db, err := database.NewDB(cfg.DatabaseURL, database.PoolConfig{
+		MaxConns: cfg.DBMaxConns,
+		MinConns: cfg.DBMinConns,
+	})
 	if err != nil {
 		log.Error("failed to connect to database", slog.String("error", err.Error()))
 		panic(err)
@@ -66,7 +69,7 @@ func New() *App {
 	userUC := userusecase.NewWithLogger(userRepo, log)
 	emailService := email.New(cfg, log)
 
-	authUC := authusecase.NewWithLogger(userUC, emailService, verificationRepo, cfg.SMTPEnabled(), log)
+	authUC := authusecase.NewWithLogger(userUC, emailService, verificationRepo, cfg.SMTPEnabled(), cfg.OTPExpiryMinutes, log)
 
 	eventUC := eventusecase.NewWithLogger(eventRepo, participantRepo, log)
 	participantUC := participantusecase.NewWithLogger(participantRepo, eventRepo, log)
@@ -96,7 +99,7 @@ func New() *App {
 	}
 
 	authHandler := v1.NewAuthHandler(authProvider, jwtManager, authUC, userUC, cfg.FrontendURL)
-	uploadHandler := v1.NewUploadHandler(cfg.AppBaseURL)
+	uploadHandler := v1.NewUploadHandler(cfg.AppBaseURL, cfg.UploadDir)
 
 	router := v1.NewRouter(
 		authHandler,
@@ -110,6 +113,8 @@ func New() *App {
 		uploadHandler,
 		jwtManager,
 		log,
+		cfg,
+		db,
 	)
 
 	ctx, cancel := context.WithCancel(context.Background())

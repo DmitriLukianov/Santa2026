@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { fetchRecipientChat, fetchSenderChat, sendMessage, sendMessageToSanta, fetchAssignments, fetchMe, isAuthenticated } from '/src/api/gameApi.jsx';
+import { fetchRecipientChat, fetchSenderChat, sendMessage, sendMessageToSanta, fetchAssignments, fetchGameById, fetchMe, isAuthenticated } from '/src/api/gameApi.jsx';
 import './main.css';
 
 function SecretChat() {
@@ -15,6 +15,7 @@ function SecretChat() {
   const [isLoading, setIsLoading] = useState(true);
   const [chatError, setChatError] = useState(null);
   const [myId, setMyId] = useState(null);
+  const [gameTitle, setGameTitle] = useState('');
   const [chatData, setChatData] = useState({
     recipient: { title: 'Загрузка...', partner: '' },
     sender: { title: 'Загрузка...', partner: '' }
@@ -73,10 +74,13 @@ function SecretChat() {
       try {
         setIsLoading(true);
 
-        const [me, assignments] = await Promise.all([
+        const [me, assignments, game] = await Promise.all([
           fetchMe(),
           fetchAssignments(eventId),
+          fetchGameById(eventId),
         ]);
+
+        setGameTitle(game?.title || '');
 
         const userId = me?.id || null;
         setMyId(userId);
@@ -199,7 +203,7 @@ function SecretChat() {
 
         <div className="chat-header">
           <h1 className="chat-title">{chatData[activeTab].title}</h1>
-          <h2 className="chat-team">Команда</h2>
+          {gameTitle && <h2 className="chat-team">{gameTitle}</h2>}
           <p className="chat-partner">Собеседник: {chatData[activeTab].partner}</p>
         </div>
 
@@ -214,9 +218,7 @@ function SecretChat() {
             </div>
           ) : messages[activeTab].length === 0 ? (
             <div style={{ textAlign: 'center', color: '#757575', marginTop: '40px' }}>
-              {activeTab === 'sender'
-                ? 'Ваш Санта ещё не написал вам'
-                : 'Пока нет сообщений. Напишите первым!'}
+              Пока нет сообщений. Напишите первым!
             </div>
           ) : (
             messages[activeTab].map((msg) => (

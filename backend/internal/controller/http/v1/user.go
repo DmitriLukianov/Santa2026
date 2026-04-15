@@ -29,7 +29,9 @@ func (h *UserHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.uc.GetByID(r.Context(), userID)
 	if err != nil {
-		response.WriteHTTPError(w, err)
+		// Токен валиден, но пользователя нет в БД (например, после очистки БД).
+		// Возвращаем 401 — фронтенд автоматически очистит токен и редиректнет на вход.
+		response.WriteHTTPError(w, definitions.ErrUnauthorized)
 		return
 	}
 

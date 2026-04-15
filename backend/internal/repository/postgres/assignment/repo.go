@@ -55,6 +55,36 @@ func (r *Repository) GetByEvent(ctx context.Context, eventID uuid.UUID) ([]entit
 	return scanAssignments(rows)
 }
 
+// GetByGiver возвращает назначение конкретного дарителя без загрузки всего списка.
+func (r *Repository) GetByGiver(ctx context.Context, eventID, giverID uuid.UUID) (*entity.Assignment, error) {
+	query := getAssignmentByGiverQuery(eventID.String(), giverID.String())
+	sql, args, err := query.ToSql()
+	if err != nil {
+		return nil, err
+	}
+	row := r.db.QueryRow(ctx, sql, args...)
+	a, err := scanAssignmentWithName(row)
+	if err != nil {
+		return nil, err
+	}
+	return a, nil
+}
+
+// GetByReceiver возвращает назначение для получателя (кто его Санта).
+func (r *Repository) GetByReceiver(ctx context.Context, eventID, receiverID uuid.UUID) (*entity.Assignment, error) {
+	query := getAssignmentByReceiverQuery(eventID.String(), receiverID.String())
+	sql, args, err := query.ToSql()
+	if err != nil {
+		return nil, err
+	}
+	row := r.db.QueryRow(ctx, sql, args...)
+	a, err := scanAssignmentWithName(row)
+	if err != nil {
+		return nil, err
+	}
+	return a, nil
+}
+
 func (r *Repository) DeleteByEvent(ctx context.Context, eventID uuid.UUID) error {
 	query := deleteAssignmentsByEventQuery(eventID.String())
 	sql, args, err := query.ToSql()

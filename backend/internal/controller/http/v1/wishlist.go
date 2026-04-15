@@ -262,14 +262,15 @@ func (h *WishlistHandler) GetItems(w http.ResponseWriter, r *http.Request) {
 		// public — доступ разрешён всем
 	}
 
-	items, err := h.uc.GetItems(r.Context(), wishlistID)
+	pg := helpers.ParsePagination(r)
+	items, total, err := h.uc.GetItemsPaged(r.Context(), wishlistID, pg.Limit, pg.Offset())
 	if err != nil {
 		response.WriteHTTPError(w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response.WishlistItemsToResponse(items))
+	json.NewEncoder(w).Encode(helpers.NewPagedResponse(response.WishlistItemsToResponse(items), total, pg))
 }
 
 func (h *WishlistHandler) UpdateItem(w http.ResponseWriter, r *http.Request) {

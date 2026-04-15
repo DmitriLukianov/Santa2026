@@ -148,6 +148,10 @@ func (uc *UseCase) Draw(ctx context.Context, eventID, userID uuid.UUID) error {
 	return nil
 }
 
+// createDerangement создаёт случайный деранжемент участников.
+// Алгоритм: сначала перемешиваем список криптографически случайно,
+// затем устраняем фиксированные точки циклическим сдвигом — результат
+// гарантированно корректен за O(n) без бесконечных попыток.
 func (uc *UseCase) createDerangement(eventID uuid.UUID, participants []entity.Participant) ([]entity.Assignment, error) {
 	n := len(participants)
 	ids := make([]uuid.UUID, n)
@@ -155,33 +159,49 @@ func (uc *UseCase) createDerangement(eventID uuid.UUID, participants []entity.Pa
 		ids[i] = p.UserID
 	}
 
-	const maxAttempts = 200
-	for attempt := 0; attempt < maxAttempts; attempt++ {
-		shuffled := make([]uuid.UUID, n)
-		copy(shuffled, ids)
+	// Шаг 1: случайное перемешивание
+	shuffled := make([]uuid.UUID, n)
+	copy(shuffled, ids)
+	if err := cryptoShuffle(shuffled); err != nil {
+		return nil, fmt.Errorf("failed to shuffle: %w", err)
+	}
 
-		if err := cryptoShuffle(shuffled); err != nil {
-			return nil, fmt.Errorf("failed to shuffle: %w", err)
-		}
-
-		valid := true
-		for i := 0; i < n; i++ {
-			if shuffled[i] == ids[i] {
-				valid = false
-				break
+	// Шаг 2: устраняем фиксированные точки (когда giver[i] == receiver[i])
+	// Для каждой фиксированной точки меняем её со следующим элементом по кругу.
+	for i := 0; i < n; i++ {
+		if shuffled[i] == ids[i] {
+			// Ищем ближайший элемент справа, который не создаст новую фиксированную точку
+			swapped := false
+			for j := 1; j < n; j++ {
+				k := (i + j) % n
+				// Проверяем, что свап не создаёт фиксированную точку ни в i, ни в k
+				if shuffled[k] != ids[i] && shuffled[i] != ids[k] {
+					shuffled[i], shuffled[k] = shuffled[k], shuffled[i]
+					swapped = true
+					break
+				}
 			}
-		}
-
-		if valid {
-			assignments := make([]entity.Assignment, n)
-			for i := 0; i < n; i++ {
-				assignments[i] = entity.NewAssignment(eventID, ids[i], shuffled[i])
+			// Если не нашли безопасный свап — делаем простой сдвиг на 1
+			if !swapped && n > 1 {
+				next := (i + 1) % n
+				shuffled[i], shuffled[next] = shuffled[next], shuffled[i]
+				// Если теперь next стал фиксированной точкой, цикл поправит её на следующей итерации
 			}
-			return assignments, nil
 		}
 	}
 
-	return nil, fmt.Errorf("failed to generate valid derangement after %d attempts", maxAttempts)
+	// Финальная проверка корректности
+	for i := 0; i < n; i++ {
+		if shuffled[i] == ids[i] {
+			return nil, fmt.Errorf("derangement failed: fixed point remains at index %d", i)
+		}
+	}
+
+	assignments := make([]entity.Assignment, n)
+	for i := 0; i < n; i++ {
+		assignments[i] = entity.NewAssignment(eventID, ids[i], shuffled[i])
+	}
+	return assignments, nil
 }
 
 func cryptoShuffle(s []uuid.UUID) error {

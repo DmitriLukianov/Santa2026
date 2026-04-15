@@ -20,6 +20,7 @@ type UseCase struct {
 	emailService     usecase.EmailService
 	verificationRepo usecase.VerificationRepository
 	smtpEnabled      bool
+	otpExpiryMinutes int
 	log              *slog.Logger
 }
 
@@ -29,15 +30,20 @@ func New(userUC usecase.UserUseCase, emailService usecase.EmailService, verifica
 		emailService:     emailService,
 		verificationRepo: verificationRepo,
 		smtpEnabled:      smtpEnabled,
+		otpExpiryMinutes: 10,
 	}
 }
 
-func NewWithLogger(userUC usecase.UserUseCase, emailService usecase.EmailService, verificationRepo usecase.VerificationRepository, smtpEnabled bool, log *slog.Logger) *UseCase {
+func NewWithLogger(userUC usecase.UserUseCase, emailService usecase.EmailService, verificationRepo usecase.VerificationRepository, smtpEnabled bool, otpExpiryMinutes int, log *slog.Logger) *UseCase {
+	if otpExpiryMinutes <= 0 {
+		otpExpiryMinutes = 10
+	}
 	return &UseCase{
 		userUC:           userUC,
 		emailService:     emailService,
 		verificationRepo: verificationRepo,
 		smtpEnabled:      smtpEnabled,
+		otpExpiryMinutes: otpExpiryMinutes,
 		log:              log,
 	}
 }
@@ -130,7 +136,7 @@ func (uc *UseCase) SendOTP(ctx context.Context, email string) error {
 	// Инвалидируем все старые коды для этого email перед отправкой нового
 	_ = uc.verificationRepo.InvalidateCodes(ctx, email)
 
-	expiresAt := time.Now().Add(10 * time.Minute)
+	expiresAt := time.Now().Add(time.Duration(uc.otpExpiryMinutes) * time.Minute)
 	if err := uc.verificationRepo.SaveCode(ctx, email, code, expiresAt); err != nil {
 		return fmt.Errorf("failed to save verification code: %w", err)
 	}

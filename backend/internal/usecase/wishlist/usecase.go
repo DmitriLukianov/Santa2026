@@ -99,6 +99,13 @@ func (uc *UseCase) GetItems(ctx context.Context, wishlistID uuid.UUID) ([]entity
 	return uc.repo.GetItems(ctx, wishlistID)
 }
 
+func (uc *UseCase) GetItemsPaged(ctx context.Context, wishlistID uuid.UUID, limit, offset int) ([]entity.WishlistItem, int, error) {
+	if wishlistID == uuid.Nil {
+		return nil, 0, definitions.ErrInvalidUserInput
+	}
+	return uc.repo.GetItemsPaged(ctx, wishlistID, limit, offset)
+}
+
 func (uc *UseCase) GetForUser(ctx context.Context, eventID, participantID, requesterID uuid.UUID) (*entity.Wishlist, error) {
 	if eventID == uuid.Nil || participantID == uuid.Nil || requesterID == uuid.Nil {
 		return nil, definitions.ErrInvalidUserInput
@@ -135,21 +142,15 @@ func (uc *UseCase) GetForUser(ctx context.Context, eventID, participantID, reque
 		return wishlist, nil
 
 	case definitions.WishlistVisibilitySantaOnly:
-
-		assignments, err := uc.assignmentRepo.GetByEvent(ctx, eventID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to check assignment: %w", err)
-		}
-
-		for _, a := range assignments {
-			if a.GiverID == requesterID && a.ReceiverID == participant.UserID {
-				if uc.log != nil {
-					uc.log.Info("wishlist access granted to santa",
-						slog.String("requester_id", requesterID.String()),
-					)
-				}
-				return wishlist, nil
+		// Используем точечный запрос вместо загрузки всех назначений события
+		assignment, err := uc.assignmentRepo.GetByGiver(ctx, eventID, requesterID)
+		if err == nil && assignment.ReceiverID == participant.UserID {
+			if uc.log != nil {
+				uc.log.Info("wishlist access granted to santa",
+					slog.String("requester_id", requesterID.String()),
+				)
 			}
+			return wishlist, nil
 		}
 
 		if uc.log != nil {

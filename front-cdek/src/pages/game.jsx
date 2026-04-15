@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 // Импортируем нужные методы API
-import { fetchGameById, fetchParticipants, fetchMe, removeParticipant, deleteGame, isAuthenticated } from '/src/api/gameApi.jsx';
+import { fetchGameById, fetchParticipants, fetchMe, removeParticipant, deleteGame, finishGame, isAuthenticated } from '/src/api/gameApi.jsx';
 import { addParticipant } from '/src/api/participantsApi.jsx';
 import './main.css';
 
@@ -13,6 +13,7 @@ function Game() {
   const [gameData, setGameData] = useState(null);
   const [participantsCount, setParticipantsCount] = useState(0);
   const [isDrawDone, setIsDrawDone] = useState(false);
+  const [gameStatus, setGameStatus] = useState(null);
   const [isOrganizer, setIsOrganizer] = useState(false);
   const [myParticipantId, setMyParticipantId] = useState(null);
 
@@ -61,6 +62,7 @@ function Game() {
         // Жеребьёвка проведена если статус игры gifting или finished
         const drawStatus = game.status === 'gifting' || game.status === 'finished';
         setIsDrawDone(drawStatus);
+        setGameStatus(game.status);
 
         // Сохраняем основные данные игры
         setGameData({
@@ -143,6 +145,20 @@ function Game() {
       setParticipantsCount(prev => prev + 1);
     } catch (err) {
       alert(err.message || 'Не удалось присоединиться к игре.');
+    }
+  };
+
+  const handleFinishGame = async () => {
+    const confirmed = window.confirm(
+      `Завершить игру "${gameData.teamName}"?\n\nПосле завершения игра перейдёт в архив и станет недоступна для новых действий.`
+    );
+    if (!confirmed) return;
+    try {
+      await finishGame(eventId);
+      setGameStatus('finished');
+      setGameData(prev => ({ ...prev, stage: 'Завершена', isChatAvailable: false }));
+    } catch (err) {
+      alert(err.message || 'Не удалось завершить игру. Попробуйте позже.');
     }
   };
 
@@ -279,8 +295,17 @@ function Game() {
           </div>
         </div>
 
-        {/* Футер с кнопкой выхода */}
+        {/* Футер с кнопками управления */}
         <div className="game-footer">
+          {isOrganizer && gameStatus === 'gifting' && (
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={handleFinishGame}
+            >
+              Завершить игру
+            </button>
+          )}
           <button
             type="button"
             className={isOrganizer ? 'btn-danger' : 'btn-secondary'}

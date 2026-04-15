@@ -33,34 +33,32 @@ func NewWithLogger(repo usecase.ChatRepository, participantRepo usecase.Particip
 	return uc
 }
 
-// SendMessageToSanta — отправить сообщение своему Санте (тому, кто дарит мне)
+// SendMessageToSanta — отправить сообщение своему Санте (тому, кто дарит мне).
+// Использует точечный запрос GetByReceiver — без загрузки всех назначений.
 func (uc *UseCase) SendMessageToSanta(ctx context.Context, eventID, userID uuid.UUID, content string) (entity.Message, error) {
 	if content == "" {
 		return entity.Message{}, definitions.ErrInvalidUserInput
 	}
+	if len(content) > 2000 {
+		return entity.Message{}, definitions.ErrInvalidUserInput
+	}
 
-	assignments, err := uc.assignmentRepo.GetByEvent(ctx, eventID)
+	assignment, err := uc.assignmentRepo.GetByReceiver(ctx, eventID, userID)
 	if err != nil {
-		return entity.Message{}, fmt.Errorf("failed to get assignments: %w", err)
-	}
-
-	var santaID uuid.UUID
-	for _, a := range assignments {
-		if a.ReceiverID == userID {
-			santaID = a.GiverID
-			break
-		}
-	}
-	if santaID == uuid.Nil {
 		return entity.Message{}, definitions.ErrNotSanta
 	}
 
-	msg := entity.NewMessage(eventID, userID, santaID, content)
+	msg := entity.NewMessage(eventID, userID, assignment.GiverID, content)
 	return uc.repo.CreateMessage(ctx, msg)
 }
 
+// SendMessage — Санта отправляет сообщение своему получателю.
+// Использует точечный запрос GetByGiver — без загрузки всех назначений.
 func (uc *UseCase) SendMessage(ctx context.Context, eventID, userID uuid.UUID, content string) (entity.Message, error) {
 	if content == "" {
+		return entity.Message{}, definitions.ErrInvalidUserInput
+	}
+	if len(content) > 2000 {
 		return entity.Message{}, definitions.ErrInvalidUserInput
 	}
 
@@ -71,25 +69,12 @@ func (uc *UseCase) SendMessage(ctx context.Context, eventID, userID uuid.UUID, c
 		)
 	}
 
-	assignments, err := uc.assignmentRepo.GetByEvent(ctx, eventID)
+	assignment, err := uc.assignmentRepo.GetByGiver(ctx, eventID, userID)
 	if err != nil {
-		return entity.Message{}, fmt.Errorf("failed to get assignments: %w", err)
-	}
-
-	// Отправитель должен быть giver — ищем только его назначение
-	var receiverID uuid.UUID
-	for _, a := range assignments {
-		if a.GiverID == userID {
-			receiverID = a.ReceiverID
-			break
-		}
-	}
-	if receiverID == uuid.Nil {
 		return entity.Message{}, definitions.ErrNotSanta
 	}
 
-	msg := entity.NewMessage(eventID, userID, receiverID, content)
-
+	msg := entity.NewMessage(eventID, userID, assignment.ReceiverID, content)
 	createdMsg, err := uc.repo.CreateMessage(ctx, msg)
 	if err != nil {
 		return entity.Message{}, fmt.Errorf("failed to create message: %w", err)
@@ -100,31 +85,20 @@ func (uc *UseCase) SendMessage(ctx context.Context, eventID, userID uuid.UUID, c
 			slog.String("message_id", createdMsg.ID.String()),
 		)
 	}
-
 	return createdMsg, nil
 }
 
-// GetSenderChat — сообщения от моего Санты (где я получатель)
+// GetSenderChat — сообщения от моего Санты (где я получатель).
 func (uc *UseCase) GetSenderChat(ctx context.Context, eventID, userID uuid.UUID) ([]entity.Message, error) {
-	assignments, err := uc.assignmentRepo.GetByEvent(ctx, eventID)
+	assignment, err := uc.assignmentRepo.GetByReceiver(ctx, eventID, userID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get assignments: %w", err)
-	}
-
-	var senderID uuid.UUID
-	for _, a := range assignments {
-		if a.ReceiverID == userID {
-			senderID = a.GiverID
-			break
-		}
-	}
-	if senderID == uuid.Nil {
+		// Назначения нет — чат пуст, не ошибка
 		return []entity.Message{}, nil
 	}
-
-	return uc.repo.GetMessagesByPair(ctx, eventID, senderID, userID)
+	return uc.repo.GetMessagesByPair(ctx, eventID, assignment.GiverID, userID)
 }
 
+// GetRecipientChat — сообщения Санты своему получателю.
 func (uc *UseCase) GetRecipientChat(ctx context.Context, eventID, userID uuid.UUID) ([]entity.Message, error) {
 	if uc.log != nil {
 		uc.log.Info("get recipient chat started",
@@ -133,22 +107,10 @@ func (uc *UseCase) GetRecipientChat(ctx context.Context, eventID, userID uuid.UU
 		)
 	}
 
-	assignments, err := uc.assignmentRepo.GetByEvent(ctx, eventID)
+	assignment, err := uc.assignmentRepo.GetByGiver(ctx, eventID, userID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get assignments: %w", err)
-	}
-
-	var receiverID uuid.UUID
-	for _, a := range assignments {
-		if a.GiverID == userID {
-			receiverID = a.ReceiverID
-			break
-		}
-	}
-	if receiverID == uuid.Nil {
 		return nil, definitions.ErrNotSanta
 	}
-
-	return uc.repo.GetMessagesByPair(ctx, eventID, userID, receiverID)
+	return uc.repo.GetMessagesByPair(ctx, eventID, userID, assignment.ReceiverID)
 }
 

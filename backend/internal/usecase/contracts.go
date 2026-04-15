@@ -34,6 +34,7 @@ type ParticipantUseCase interface {
 	Create(ctx context.Context, eventID, userID uuid.UUID, role string) (entity.Participant, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*entity.Participant, error)
 	GetByEvent(ctx context.Context, eventID uuid.UUID) ([]entity.Participant, error)
+	GetByEventPaged(ctx context.Context, eventID uuid.UUID, limit, offset int) ([]entity.Participant, int, error)
 	Delete(ctx context.Context, id, requesterID uuid.UUID) error
 	GetByUserAndEvent(ctx context.Context, userID, eventID uuid.UUID) (*entity.Participant, error)
 }
@@ -44,6 +45,7 @@ type WishlistUseCase interface {
 	AddItem(ctx context.Context, wishlistID uuid.UUID, title string, link, imageURL *string, price *float64) (entity.WishlistItem, error)
 	GetByParticipant(ctx context.Context, participantID uuid.UUID) (*entity.Wishlist, error)
 	GetItems(ctx context.Context, wishlistID uuid.UUID) ([]entity.WishlistItem, error)
+	GetItemsPaged(ctx context.Context, wishlistID uuid.UUID, limit, offset int) ([]entity.WishlistItem, int, error)
 	GetForUser(ctx context.Context, eventID, participantID, requesterID uuid.UUID) (*entity.Wishlist, error)
 	GetItemByID(ctx context.Context, itemID uuid.UUID) (*entity.WishlistItem, error)
 	UpdateItem(ctx context.Context, itemID uuid.UUID, title string, link, imageURL *string, price *float64) (entity.WishlistItem, error)
@@ -76,6 +78,8 @@ type ParticipantRepository interface {
 type AssignmentRepository interface {
 	Create(ctx context.Context, assignment entity.Assignment) (entity.Assignment, error)
 	GetByEvent(ctx context.Context, eventID uuid.UUID) ([]entity.Assignment, error)
+	GetByGiver(ctx context.Context, eventID, giverID uuid.UUID) (*entity.Assignment, error)
+	GetByReceiver(ctx context.Context, eventID, receiverID uuid.UUID) (*entity.Assignment, error)
 	DeleteByEvent(ctx context.Context, eventID uuid.UUID) error
 	TransactionalDraw(ctx context.Context, eventID uuid.UUID, assignments []entity.Assignment, newStatus definitions.EventStatus) error
 }

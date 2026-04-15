@@ -16,7 +16,8 @@ func getEventQuery() squirrel.SelectBuilder {
 		"events.created_at",
 		"events.updated_at",
 	).
-		From("events")
+		From("events").
+		Where("events.deleted_at IS NULL")
 }
 
 func listEventsQuery() squirrel.SelectBuilder {

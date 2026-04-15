@@ -54,7 +54,7 @@ function Wishlist() {
         setWishlistId(wId);
 
         const items = await fetchWishlistItems(wId);
-        const list = Array.isArray(items) ? items : [];
+        const list = Array.isArray(items) ? items : (items?.items || []);
         setGifts(list);
         setIsEmpty(list.length === 0);
       } catch (err) {
@@ -136,7 +136,7 @@ function Wishlist() {
     try {
       const personalWishlist = await fetchMyWishlist(undefined); // личный (без eventId)
       const items = await fetchWishlistItems(personalWishlist.id);
-      const list = Array.isArray(items) ? items : [];
+      const list = Array.isArray(items) ? items : (items?.items || []);
       // Исключаем уже добавленные (по title)
       const existingTitles = new Set(gifts.map(g => g.title.toLowerCase()));
       setPersonalItems(list.filter(item => !existingTitles.has(item.title.toLowerCase())));

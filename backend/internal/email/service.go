@@ -43,12 +43,12 @@ func (s *Service) SendOTP(ctx context.Context, email string) (string, error) {
 	subject := "🔑 Код подтверждения для Тайный Санта"
 	body := fmt.Sprintf(`Ваш код подтверждения: %s
 
-Код действителен 10 минут.
+Код действителен %d минут.
 
 Если вы не запрашивали код — просто проигнорируйте это письмо.
 
 С наилучшими пожеланиями,
-Команда Тайный Санта`, code)
+Команда Тайный Санта`, code, s.cfg.OTPExpiryMinutes)
 
 	if err := s.send(ctx, email, subject, body); err != nil {
 		// Код сгенерирован — логируем его, чтобы можно было использовать вручную.
@@ -102,7 +102,11 @@ func (s *Service) SendDrawNotification(ctx context.Context, email, eventTitle st
 
 func (s *Service) generateOTP() string {
 	const digits = "0123456789"
-	code := make([]byte, 6)
+	length := s.cfg.OTPLength
+	if length <= 0 {
+		length = 6
+	}
+	code := make([]byte, length)
 	for i := range code {
 		n, _ := rand.Int(rand.Reader, big.NewInt(10))
 		code[i] = digits[n.Int64()]

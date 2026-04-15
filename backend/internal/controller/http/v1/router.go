@@ -5,11 +5,13 @@ import (
 	"net/http"
 	"time"
 
+	"secret-santa-backend/internal/config"
 	"secret-santa-backend/internal/controller/http/middleware"
 	"secret-santa-backend/internal/oauth"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func NewRouter(
@@ -24,36 +26,40 @@ func NewRouter(
 	uploadHandler *UploadHandler,
 	jwtManager *oauth.JWTManager,
 	log *slog.Logger,
+	cfg *config.Config,
+	db *pgxpool.Pool,
 ) *chi.Mux {
 	router := chi.NewRouter()
 
 	router.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:5173", "http://localhost:3000", "https://*"},
+		AllowedOrigins:   cfg.CORSOriginsSlice(),
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-Request-ID"},
+		ExposedHeaders:   []string{"X-Request-ID"},
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
 
-	router.Use(middleware.RecoveryMiddleware)
+	router.Use(middleware.RecoveryMiddlewareWithLogger(log))
+	router.Use(middleware.RequestIDMiddleware)
+	router.Use(middleware.MaxBodySizeMiddleware(cfg.MaxRequestBodySize))
 	router.Use(middleware.TimeoutMiddleware(10 * time.Second))
 
-	router.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"status":"ok"}`))
-	})
+	// Rate limiter для OTP-эндпоинтов
+	otpLimiter := middleware.NewOTPRateLimiter(cfg.RateLimitOTPPerHour)
+
+	router.Mount("/health", newHealthHandler(db))
 
 	// Раздача загруженных файлов
-	router.Handle("/static/uploads/*", http.StripPrefix("/static/uploads/", http.FileServer(http.Dir("./uploads"))))
-
+	router.Handle("/static/uploads/*", http.StripPrefix("/static/uploads/", http.FileServer(http.Dir(cfg.UploadDir))))
 
 	router.Route("/api/v1", func(r chi.Router) {
 		r.Route("/auth", func(r chi.Router) {
 			r.Get("/login", authHandler.Login)
 			r.Get("/callback", authHandler.Callback)
-			r.Post("/send-otp", authHandler.SendOTP)
-			r.Post("/verify-otp", authHandler.VerifyOTP)
+			// OTP-эндпоинты защищены rate limiter'ом
+			r.With(middleware.OTPRateLimitMiddleware(otpLimiter)).Post("/send-otp", authHandler.SendOTP)
+			r.With(middleware.OTPRateLimitMiddleware(otpLimiter)).Post("/verify-otp", authHandler.VerifyOTP)
 		})
 
 		r.Group(func(r chi.Router) {

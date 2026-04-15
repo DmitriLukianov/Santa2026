@@ -15,20 +15,18 @@ import (
 	"github.com/google/uuid"
 )
 
-const (
-	uploadDir     = "./uploads"
-	maxUploadSize = 5 << 20 // 5 MB
-)
+const maxUploadSize = 5 << 20 // 5 MB
 
 type UploadHandler struct {
-	baseURL string
+	baseURL   string
+	uploadDir string
 }
 
-func NewUploadHandler(baseURL string) *UploadHandler {
+func NewUploadHandler(baseURL, uploadDir string) *UploadHandler {
 	if err := os.MkdirAll(uploadDir, 0755); err != nil {
-		panic(fmt.Sprintf("failed to create upload directory: %v", err))
+		panic(fmt.Sprintf("failed to create upload directory %q: %v", uploadDir, err))
 	}
-	return &UploadHandler{baseURL: baseURL}
+	return &UploadHandler{baseURL: baseURL, uploadDir: uploadDir}
 }
 
 func (h *UploadHandler) Upload(w http.ResponseWriter, r *http.Request) {
@@ -66,7 +64,7 @@ func (h *UploadHandler) Upload(w http.ResponseWriter, r *http.Request) {
 
 	ext := filepath.Ext(header.Filename)
 	filename := uuid.New().String() + ext
-	dst := filepath.Join(uploadDir, filename)
+	dst := filepath.Join(h.uploadDir, filename)
 
 	out, err := os.Create(dst)
 	if err != nil {

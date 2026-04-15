@@ -62,6 +62,37 @@ func (r *Repository) GetByEvent(ctx context.Context, eventID uuid.UUID) ([]entit
 	return scanParticipants(rows)
 }
 
+// GetByEventPaged возвращает участников события с пагинацией.
+func (r *Repository) GetByEventPaged(ctx context.Context, eventID uuid.UUID, limit, offset int) ([]entity.Participant, int, error) {
+	// Запрос с пагинацией
+	query := getParticipantsByEventQuery(eventID.String()).
+		Limit(uint64(limit)).
+		Offset(uint64(offset))
+	sql, args, err := query.ToSql()
+	if err != nil {
+		return nil, 0, err
+	}
+	rows, err := r.db.Query(ctx, sql, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+	participants, err := scanParticipants(rows)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Общее число участников
+	countSQL, countArgs, err := countParticipantsByEventQuery(eventID.String()).ToSql()
+	if err != nil {
+		return participants, 0, nil
+	}
+	var total int
+	_ = r.db.QueryRow(ctx, countSQL, countArgs...).Scan(&total)
+
+	return participants, total, nil
+}
+
 func (r *Repository) Delete(ctx context.Context, id uuid.UUID) error {
 	query := deleteParticipantQuery(id.String())
 	sql, args, err := query.ToSql()

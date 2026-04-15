@@ -54,10 +54,6 @@ func WriteHTTPError(w http.ResponseWriter, err error) {
 		status = http.StatusNotFound
 		message = "Пользователь не найден"
 
-	case errors.Is(err, definitions.ErrFriendshipNotFound):
-		status = http.StatusNotFound
-		message = "Дружба не найдена"
-
 	case errors.Is(err, definitions.ErrForbidden):
 		status = http.StatusForbidden
 		message = "Доступ запрещён"
@@ -87,13 +83,9 @@ func WriteHTTPError(w http.ResponseWriter, err error) {
 		status = http.StatusConflict
 		message = "Игра уже завершена"
 
-	case errors.Is(err, definitions.ErrFriendshipAlreadyExists):
-		status = http.StatusConflict
-		message = "Запрос на дружбу уже отправлен"
-
 	case errors.Is(err, definitions.ErrInvalidEventState):
 		status = http.StatusBadRequest
-		message = "Нельзя присоединиться: игра уже не принимает участников"
+		message = "Действие недоступно для текущего статуса игры"
 
 	case errors.Is(err, definitions.ErrNotEnoughParticipants):
 		status = http.StatusBadRequest
@@ -116,10 +108,6 @@ func WriteHTTPError(w http.ResponseWriter, err error) {
 	case errors.Is(err, definitions.ErrInvalidWishlistVisibility):
 		status = http.StatusBadRequest
 		message = "Некорректный уровень видимости вишлиста"
-
-	case errors.Is(err, definitions.ErrFriendshipInvalidStatus):
-		status = http.StatusBadRequest
-		message = "Некорректный статус дружбы"
 
 	default:
 		status = http.StatusInternalServerError

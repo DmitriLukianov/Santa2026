@@ -23,6 +23,13 @@ func getParticipantsByEventQuery(eventID string) squirrel.SelectBuilder {
 	).
 		From("participants p").
 		LeftJoin("users u ON u.id = p.user_id").
+		Where(squirrel.Eq{"p.event_id": eventID}).
+		OrderBy("p.created_at ASC")
+}
+
+func countParticipantsByEventQuery(eventID string) squirrel.SelectBuilder {
+	return qb.Select("COUNT(*)").
+		From("participants p").
 		Where(squirrel.Eq{"p.event_id": eventID})
 }
 

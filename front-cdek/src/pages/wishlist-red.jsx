@@ -87,8 +87,9 @@ function WishlistRed() {
         setWishlistId(wId);
 
         // 2. Получаем товары вишлиста
-        const items = await fetchWishlistItems(wId);
-        const item = Array.isArray(items) ? items.find(i => i.id === itemId) : null;
+        const itemsData = await fetchWishlistItems(wId);
+        const itemsList = Array.isArray(itemsData) ? itemsData : (itemsData?.items || []);
+        const item = itemsList.find(i => i.id === itemId);
 
         if (!item) {
           throw new Error('Товар не найден');

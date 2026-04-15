@@ -1,9 +1,10 @@
 package v1
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
-	"time"
 
 	"github.com/google/uuid"
 
@@ -34,16 +35,57 @@ func NewAuthHandler(provider oauth.Provider, jwt *oauth.JWTManager, uc *authuc.U
 	}
 }
 
-func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
-	state := "ss-" + time.Now().Format("20060102150405")
-	url := h.provider.GetAuthURL(state)
+// generateState создаёт криптографически случайный state для OAuth CSRF-защиты.
+func generateState() (string, error) {
+	b := make([]byte, 24)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return base64.URLEncoding.EncodeToString(b), nil
+}
 
-	w.Header().Set("Location", url)
-	w.WriteHeader(http.StatusFound)
+func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
+	state, err := generateState()
+	if err != nil {
+		response.WriteHTTPError(w, err)
+		return
+	}
+
+	// Сохраняем state в httpOnly cookie — проверим при callback
+	http.SetCookie(w, &http.Cookie{
+		Name:     "oauth_state",
+		Value:    state,
+		Path:     "/",
+		MaxAge:   300, // 5 минут
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	url := h.provider.GetAuthURL(state)
+	http.Redirect(w, r, url, http.StatusFound)
 }
 
 func (h *AuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+
+	// Проверяем OAuth state против cookie (CSRF-защита)
+	stateCookie, err := r.Cookie("oauth_state")
+	if err != nil || stateCookie.Value == "" {
+		response.WriteHTTPError(w, definitions.ErrInvalidOAuthCode)
+		return
+	}
+	if r.URL.Query().Get("state") != stateCookie.Value {
+		response.WriteHTTPError(w, definitions.ErrInvalidOAuthCode)
+		return
+	}
+	// Удаляем использованный state-cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:     "oauth_state",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+	})
 
 	code := r.URL.Query().Get("code")
 	if code == "" {
